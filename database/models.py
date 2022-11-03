@@ -1,16 +1,30 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, JSON
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, JSON, DATE
 from database.db import Base
 
 
 class User(Base):
-    """User Db model class
-
-    Args:
-        Base (_type_)
-    """
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    email = Column(String, unique=True, index=True)
+    email = Column(String, primary_key=True, index=True)
     hashed_password = Column(String)
-    is_active = Column(Boolean, default=True)
+    cart = Column(JSON)
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(String)
+    ordered_items = Column(JSON)
+    order_status = Column(String, default="Processing")
+    ordered_on = Column(Integer)
+
+
+class Medicine(Base):
+    __tablename__ = "medicine"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String)
+    details = Column(JSON)
+    quantity = Column(Integer)
+    type = Column(String, default="medicine")
+    price = Column(Integer)

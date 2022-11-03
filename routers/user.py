@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from internal.token import manager
 from database import db_session
 from database.models import User
 from routers.helper import (
-    check_if_user_exists, hash_pass
+    check_if_user_exists, hash_pass, decode_hash_pass, find_top_transactions
 )
 
 
@@ -24,12 +23,9 @@ class UserPayload(BaseModel):
     password: str
 
 
-@router.get("/logged-user-details", status_code=status.HTTP_200_OK)
-async def get_user_details(user=Depends(manager)):
+@router.get("/login-user", status_code=status.HTTP_200_OK)
+async def login_user(email, password):
     """This Route is used to get the current logged in user details
-
-    Args:
-        user (LoginManager, optional): Login manger. Defaults to Depends(manager).
 
     Raises:
         HTTPException: 418 exception
@@ -38,19 +34,29 @@ async def get_user_details(user=Depends(manager)):
         dict: response
     """
     try:
-        username = tuple(user)[0]
-        db_obj = db_session.query(User).filter(User.email == username).first()
-        if db_obj:
+        db_obj = db_session.query(User).filter(User.email == email).first()
+        if db_obj and password == await(decode_hash_pass(db_obj.hashed_password)):
+            orders = []
+            for obj in find_top_transactions(email):
+                tmp_dict = {
+                        "orderId": obj.id,
+                        "orderStatus": obj.order_status,
+                        "orderedOn": obj.ordered_on,
+                        "items": obj.ordered_items
+                    }
+                orders.append(tmp_dict)
             response = {
-                'username': db_obj.email,
-                'is_active': db_obj.is_active
+                'message': "Logged in",
+                'loggedIn': True,
+                'email': email,
+                'pastOrders': orders
             }
             return response
         else:
-            return {"message": "Username not found"}
+            return {"message": "Username or Password Wrong", 'email': email}
     except Exception:
         raise HTTPException(
-                status_code=418, detail="Exception occurred while saving details"
+                status_code=418, detail="Exception occurred while getting details"
             )
 
 @router.post(
@@ -60,8 +66,7 @@ async def get_user_details(user=Depends(manager)):
     status_code=status.HTTP_201_CREATED
 )
 async def add_user(data: UserPayload):
-    """_summary_
-
+    """ User Signup
     Args:
         data (UserPayload): Payload to create new user
 
@@ -81,7 +86,10 @@ async def add_user(data: UserPayload):
             )
             db_session.add(user_obj)
             db_session.commit()
-            return "User added successfully"
+            return {
+                    "message": "User added successfully",
+                    "email": data.email
+            }
         except Exception:
             db_session.rollback()
             raise HTTPException(
