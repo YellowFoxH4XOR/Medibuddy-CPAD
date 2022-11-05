@@ -32,7 +32,7 @@ def update_medicine(id, quant):
 
 def update_count(items):
     for item in items:
-        update_medicine(item.get('id'), item.get('quantity'))
+        update_medicine(item.get('itemId'), item.get('quantity'))
     return True
 
 
